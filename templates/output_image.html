@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIGTREE</title>
+    {% load django_bootstrap5 %}
+    {% bootstrap_css %}
+    {% bootstrap_javascript %}
+
+    <link rel="shortcut icon" type="image/png" href="{% static 'icon.png' %}">
+
+    <style>
+    body {
+        overflow: hidden;
+        margin: 0;
+        height: 100vh;
+        background-color: #008000;
+    }
+    .container {
+        height: calc(100vh - 50px);
+        overflow: auto;
+    }
+    .result img {
+        border: 3px solid rgb(255, 255, 255);
+        border-radius: 25px;
+        max-width: 300px;
+    }
+    .highlight-text {
+        color: rgb(0, 0, 0);
+        background-color: rgb(217, 217, 217);
+        font-weight: 550;
+        padding: 5px;
+        border-radius: 5px;
+    }
+    #imageUploadForm {
+        display: none;
+    }
+    #launchCamera {
+        background: url('{% static "camera_icon.png" %}') no-repeat center center;
+        background-size: 90%;
+        width: 75px;
+        height: 75px;
+        border: none;
+    }
+    #aboutIcon {
+        background: url('{% static "about_icon.png" %}') no-repeat center center;
+        background-size: 90%;
+        width: 75px;
+        height: 75px;
+        border: none;
+    }
+    .button-container {
+        width: 100%;
+        display: flex;
+        justify-content: space-around;
+        position: fixed;
+        bottom: 0;
+        margin-bottom: 20px;
+    }
+    .icon-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    </style>
+
+</head>
+
+<body id="pageBody">
+
+<!--Container for displaying the result-->
+<div class="container d-flex align-items-center justify-content-center">
+    <div class="result text-center">
+        <img src="{{ image_data }}" alt="Predicted Image">
+        <p class="mt-2 highlight-text">Predicted Label: <strong>{{ predicted_label }}</strong>
+            <br>
+            Accuracy: <strong>{{ accuracy }}</strong>
+        </p>
+    </div>
+
+<!--    Form for image upload-->
+    <form id="imageUploadForm" method="post" enctype="multipart/form-data">
+<!--        Security token for CSRF protection-->
+        {% csrf_token %}
+        <input class="form-control" type="file" name="image" accept="image/*" id="fileInput">
+    </form>
+
+<!--    Buttons-->
+    <div class="button-container">
+        <div class="icon-wrapper">
+            <button id="launchCamera"></button>
+            <span class="icon-label">Camera/Gallery</span>
+        </div>
+        <div class="icon-wrapper">
+            <button id="aboutIcon" type="button" data-bs-toggle="modal" data-bs-target="#aboutModal"></button>
+            <span class="icon-label">About</span>
+        </div>
+    </div>
+
+<!--    About modal-->
+    <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="aboutModalLabel">About the App</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    ...
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!--    Loading animation-->
+    <div id="loadingAnimation" style="display:none;">
+        <div class="spinner-grow text-success" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="spinner-grow text-danger" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="spinner-grow text-warning" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="spinner-grow text-info" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <br>
+        <p class="fw-bold" role="status">Processing Image...</p>
+    </div>
+</div>
+
+<script>
+    // Script to open the file input dialog when the camera/gallery button is clicked
+    document.getElementById('launchCamera').addEventListener('click', function() {
+        document.getElementById('fileInput').click();
+    });
+
+    // Script to handle the file input change event
+    document.getElementById('fileInput').addEventListener('change', function() {
+        if (this.files && this.files.length) {
+
+            // Hide the camera/gallery and about icon
+            document.getElementById('launchCamera').style.display = 'none';
+            document.getElementById('aboutIcon').style.display = 'none';
+
+            // Hide the icon labels
+            var labels = document.getElementsByClassName('icon-label');
+            for (var i = 0; i < labels.length; i++) {
+                labels[i].style.display = 'none';
+            }
+
+            // Hide the result display section
+            document.getElementsByClassName('result')[0].style.display = 'none';
+
+            // Update the body's background while submitting the image
+            var body = document.getElementById('pageBody');
+            body.style.backgroundImage = "url('{% static 'sigtree_bg.png' %}')";
+            body.style.backgroundSize = "300px";
+            body.style.backgroundPosition = "center";
+            body.style.backgroundRepeat = "no-repeat";
+
+            // Show the loading animation
+            document.getElementById('loadingAnimation').style.display = 'block';
+
+            // Submit the image upload form
+            document.getElementById('imageUploadForm').submit();
+        }
+    });
+
+</script>
+
+</body>
+</html>
