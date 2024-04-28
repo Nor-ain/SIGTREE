@@ -13,22 +13,29 @@ CATEGORIES = ['MILD', 'SEVERE']
 
 
 def preprocess(img):
-    # Resize the image
     resized = cv2.resize(img, (200, 200))
+    hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
+    # Texture features
+    sobelx = cv2.Sobel(resized, cv2.CV_64F, 1, 0, ksize=5)
+    sobely = cv2.Sobel(resized, cv2.CV_64F, 0, 1, ksize=5)
+    sobelx = cv2.convertScaleAbs(sobelx)
+    sobely = cv2.convertScaleAbs(sobely)
+    gradient_magnitude = cv2.addWeighted(sobelx, 0.5, sobely, 0.5, 0)
+    edge = cv2.Canny(resized, 100, 200)
+    # Shape features
+    contours, _ = cv2.findContours(edge, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if contours:
+        largest_contour = max(contours, key=cv2.contourArea)
+        x, y, w, h = cv2.boundingRect(largest_contour)
+        aspect_ratio = w / float(h)
+    else:
+        aspect_ratio = 0
+    # Color features
+    hist = np.concatenate([cv2.calcHist([hsv], [i], None, [256], [0, 256]).flatten() for i in range(3)])
 
-    # Convert the image to the HSV color space
-    hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)  # Corrected from RGB to HSV to BGR to HSV
-
-    # Calculate the histogram for each channel of the input image - FEATURE EXTRACTION
-    hist_hue = cv2.calcHist([hsv], [0], None, [180], [0, 180])
-    hist_saturation = cv2.calcHist([hsv], [1], None, [256], [0, 256])
-    hist_value = cv2.calcHist([hsv], [2], None, [256], [0, 256])
-
-    # Concatenate the histograms
-    hist = np.concatenate((hist_hue, hist_saturation, hist_value))
-
-    # Return to flatten histogram into a 1D array
-    return hist.flatten()
+    # Combine all features
+    feature_vector = np.concatenate((hist, gradient_magnitude.flatten(), [aspect_ratio]))
+    return feature_vector
 
 
 def predict_image(request):
@@ -72,7 +79,7 @@ def predict_image(request):
         context = {
             'image_data': image_data,
             'predicted_label': predicted_label,
-            'accuracy': f'{accuracy*100:.2f}%' if accuracy != 'N/A' else accuracy
+            'accuracy': f'{accuracy * 100:.2f}%' if accuracy != 'N/A' else accuracy
         }
         return render(request, 'output_image.html', context)
 
