@@ -5,15 +5,15 @@ import numpy as np
 from django.shortcuts import render
 
 # Load the models
-classifier_model = joblib.load('static/classifier_model.joblib')
-outlier_detection_model = joblib.load('static/outlier_detection_model.joblib')
-
-# List of class names your model can predict
-CATEGORIES = ['MILD', 'SEVERE']
+scaler = joblib.load('static/scaler.joblib')
+decision_tree = joblib.load('static/decision_tree.joblib')
+iso_forest = joblib.load('static/iso_forest.joblib')
 
 
+# Function to preprocess image
 def preprocess(img):
-    resized = cv2.resize(img, (200, 200))
+    # Resize the image and convert color to hsv
+    resized = cv2.resize(img, (128, 128))
     hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
     # Texture features
     sobelx = cv2.Sobel(resized, cv2.CV_64F, 1, 0, ksize=5)
@@ -22,14 +22,12 @@ def preprocess(img):
     sobely = cv2.convertScaleAbs(sobely)
     gradient_magnitude = cv2.addWeighted(sobelx, 0.5, sobely, 0.5, 0)
     edge = cv2.Canny(resized, 100, 200)
+
     # Shape features
     contours, _ = cv2.findContours(edge, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if contours:
-        largest_contour = max(contours, key=cv2.contourArea)
-        x, y, w, h = cv2.boundingRect(largest_contour)
-        aspect_ratio = w / float(h)
-    else:
-        aspect_ratio = 0
+    aspect_ratio = max([cv2.boundingRect(contour)[2] / float(cv2.boundingRect(contour)[3]) for contour in contours],
+                       default=0)
+
     # Color features
     hist = np.concatenate([cv2.calcHist([hsv], [i], None, [256], [0, 256]).flatten() for i in range(3)])
 
@@ -49,21 +47,25 @@ def predict_image(request):
             img_array = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
             img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
 
-            # Preprocess the image using the preprocess function
+            # Preprocess the image
             preprocessed_img = preprocess(img)
 
-            # Outlier detection
-            is_outlier = outlier_detection_model.predict([preprocessed_img])[0]
+            # Perform feature scaling
+            single_scaled_features = scaler.transform([preprocessed_img])
+
+            # Predict if the test image is an outlier
+            is_outlier = iso_forest.predict(single_scaled_features)[0]
             if is_outlier == -1:
                 # Handle cases where the image is considered an outlier
                 predicted_label = 'No matching images found. Try one more time.'
                 accuracy = 'N/A'
                 image_data = 'static/no_image_found.png'
             else:
-                # Predict the class
-                probabilities = classifier_model.predict_proba([preprocessed_img])[0]
+                # Perform prediction for the image
+                probabilities = decision_tree.predict_proba(single_scaled_features)[0]
                 predicted_label_index = np.argmax(probabilities)
-                predicted_label = 'MILD' if predicted_label_index == 0 else 'SEVERE'
+                categories = ['MILD', 'SEVERE']
+                predicted_label = categories[predicted_label_index]
                 accuracy = probabilities[predicted_label_index]
 
                 # Convert the image to Base64 for displaying on the web
