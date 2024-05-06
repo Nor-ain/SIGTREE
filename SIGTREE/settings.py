@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-(sj66iox#f9+w36q=w-^5@fcaoiz5)jwf(i&8hc1@y99b!*2h#
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-CSRF_TRUSTED_ORIGINS = ['https://sigtree-web.up.railway.app/']
+CSRF_TRUSTED_ORIGINS = ['https://sigtree-web.up.railway.app']
 
 
 # Application definition
